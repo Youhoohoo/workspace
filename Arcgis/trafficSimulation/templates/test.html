@@ -1,0 +1,36 @@
+<html> 
+<head> 
+<title>Button Widget Dojo Tests</title> 
+ <style type="text/css">
+        @import "static/js/dojo/dijit/themes/soria/soria.css";
+		@import "static/js/dojo/dojo/resources/dojo.css";
+</style>
+<script type="text/javascript" djConfig="parseOnLoad: true, isDebug: true" src="static/js/dojo/dojo/dojo.js"></script> 
+<script type="text/javascript" src="static/js/dojo/dijit/dijit.js"></script> 
+<script type="text/javascript">  
+	dojo.require("dojo.parser");
+	dojo.require("dijit.Dialog"); 
+	function bkifm(){ 
+ 		var d=dojo.byId("div1");  
+		var pos=dojo.contentBox(d); 
+ 		var bg=new dijit.DialogUnderlay(); //这里需要重写一下layout函数   
+		bg.layout=function(){           
+				var is = this.node.style,       os = this.domNode.style;    
+     			os.top = d.offsetTop + "px";      
+				os.left = d.offsetLeft + "px";      
+				is.width = 300 + "px"; 
+    			is.height = d.offsetHeight + "px";        
+				is.backgroundColor="#666666";            
+		} 
+ 		bg.show(); //自动隐藏遮罩 
+ 		//dojo.fadeOut({node:bg.domNode,duration:3000,onEnd:function(){bg.node.style.display="none";}}).play(); 
+   } 
+</script> </head> 
+<body class="soria"> 
+<div id="div1"> 
+<table id="tab1" width="300px" border="0" cellspacing="0" cellpadding="0" style="margin:0px;padding:0px;display:inline;">   <tr> 
+    <td>1</td>     <td>2</td>   </tr>   <tr> 
+    <td>3</td>     <td>4</td>   </tr>   <tr> 
+    <td>5</td>     <td>6</td>   </tr>   <tr> 
+    <td>7</td>     <td>7</td>   </tr> </table> </div> 
+<button onClick="bkifm()">ifrm</button> </body> </html>

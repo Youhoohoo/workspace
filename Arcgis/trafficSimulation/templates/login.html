@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<title>login</title>
+
+<!-- Main Stylesheet --> 
+<link rel="stylesheet" href="../static/css/style.css" type="text/css">
+<script type="text/javascript" src="./static/js/jquery-2.0.2.js"></script>
+<script type="text/javascript">
+
+$$(document).ready(function(){
+    $$("#loginbutton").bind("click",function(){
+        verify();
+    });
+
+});
+
+//接受登录页面输入的值，传如'/loginprocess'链接数据库判断是否该用户有效
+function verify() {
+    var username = $$('#username').val();
+    var password = $$('#password').val();
+    $$.ajax({
+        url: '/login',
+        data: "un="+username+"&pwd="+password,
+        dataType: 'json',
+        type: 'POST',
+        success: function(msg) { 
+                alert(msg['message']);
+                if(parseInt(msg['id'])==1) {
+                    window.location.href = '/';
+                }
+            }
+    });
+}
+
+
+
+</script>
+</head>
+<body>
+    <!-- Header -->
+    <header id="top">
+        <div class="wrapper-login">
+            <!-- Title/Logo - can use text instead of image -->
+            <div id="title"><img src="../static/image/login.png" alt="Administry"><!--<span>Administry</span> demo--></div>
+            <!-- Main navigation -->
+            
+            <!-- End of Main navigation -->
+            <!-- Aside links -->
+            
+            <!-- End of Aside links -->
+        </div>
+    </header>
+    <!-- End of Header -->
+    <!-- Page title -->
+    <div id="pagetitle">
+        <div class="wrapper-login"></div>
+    </div>
+    <!-- End of Page title -->
+    
+    <!-- Page content -->
+    <div id="page">
+        <!-- Wrapper -->
+        <div class="wrapper-login">
+                <!-- Login form -->
+                <section class="full">                  
+                    
+                    <h3>登录</h3>
+                    
+                    <p>
+                        <label class="required" for="username">用户名:</label><br>
+                        <input id="username" class="full" name="username" type="text">
+                    </p>
+                    
+                    <p>
+                        <label class="required" for="password">密码:</label><br>
+                        <input id="password" class="full" value="" name="password" type="password">
+                    </p>
+                    
+                    <p>
+                        <input id="remember" class="" value="1" name="remember" type="checkbox">
+                        <label class="choice" for="remember">记住密码</label>
+                    </p>
+                    
+                    <p>
+                        <input id="loginbutton" value="登录" class="btn btn-green big" > 
+                        &nbsp; 
+                        <a href="javascript:%20//;" onclick="$('#emailform').slideDown(); return false;">忘记密码?</a>
+                        或<a href="#">需要帮助?</a>
+                    </p>
+
+                    <div class="clear">&nbsp;</div>
+
+                    
+                    <form id="emailform" style="display: none;" method="post" action="#">
+                        <div class="box">
+                            <p id="emailinput">
+                                <label for="email">邮箱:</label><br>
+                                <input id="email" class="full" name="email" type="text">
+                            </p>
+                            <p>
+                                <input class="btn" value="发送" type="submit">
+                            </p>
+                        </div>
+                    </form>
+                    
+                </section>
+                <!-- End of login form -->
+                
+        </div>
+        <!-- End of Wrapper -->
+    </div>
+    <!-- End of Page content -->
+    
+    <!-- Page footer -->
+    <footer id="bottom">
+        <div class="wrapper-login">
+            <p>Copyright © 2014<b></b></p><b>
+        </b></div><b>
+    </b></footer>
+</body></html>

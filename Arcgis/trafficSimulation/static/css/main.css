@@ -1,0 +1,135 @@
+html, body, #main{  
+   width: 100%;
+   height: 100%;
+   overflow: hidden; /* erase window level scrollbars */
+   padding: 0 0 0 0;
+   margin: 0 0 0 0;
+   font: 10pt Times New Roman, Arial,Myriad,Tahoma,Verdana,sans-serif;
+   /*background-color: white;*/
+}
+#header {
+   color:white;
+   font-size:20pt;
+   text-align:center;
+   font-weight:bold; 
+   padding: 10px 0 0 0;
+   margin: 0 0 0 0;
+   background-color: #98c2da;
+   height: 40px;
+}
+
+#footer {
+	background-color: #98c2da; 
+	height: 30px;
+}
+#center {
+   margin: -10px 0 -8px 0;
+   padding: 0 0 0 0;
+}
+
+#HomeButton {
+   position: absolute;
+   top: 95px;
+   left: 20px;
+   z-index: 50;
+}
+
+#titleBar {
+	height: 30px; 
+	left: 0px; 
+	top: 55px; 
+	position: absolute; 
+	width: 100%;
+}
+
+div#header {
+    text-align:center;
+    color:#ffffff;
+    font-size:26px;
+    font-weight:bold;}
+.header_center {
+    line-height:50px;}
+div#titleBar {
+    background-image:url(../image/titleBar.png);}
+div#header_splitter {
+    background: none repeat scroll 0% 0% rgb(225, 235, 251);
+    height: 5px;
+    border-color: -moz-use-text-color rgb(211, 211, 211); }
+.commonHeight {
+    height: 85%;}
+div#menu {
+    left:0px;
+    top:95px;
+    position: absolute;
+    width: 14.5%;
+    background-color: #ffffff;
+    font-family:"Times New Roman";}
+
+div#map {
+    left:15%;
+    top:95px;
+    width: 70%;
+    position: absolute;
+    background-color:#ffffff;}
+div#show{
+   /*
+    left:85%;
+    top:95px;
+    width: 14.5%; 
+    position: absolute;
+   */
+    background-color:#ffffff;
+    float:left;}
+.verticalBar {
+    top:95px;
+    width: 0.5%;
+    position:absolute; 
+    background-color: rgb(225, 235, 251);}
+div.horizonBar {
+    background-color: rgb(225, 235, 251);
+    color:#ff00ff; 
+    width:100%;
+    height:5px;
+    left:0px; 
+    top: 95px;
+    position: absolute;}
+div.down {
+    left:0px;
+    top:85%;
+    width:100%; 
+    position:absolute;}
+div#footer {
+    left:0px;
+    top:110px;
+    width:100%;
+    position:absolute; 
+    text-align:center;}
+.iconOn {
+    background-color: rgb(150, 165, 175);}
+.smallIcon {
+    height:30px;
+    width:80px;
+    float:left;
+    cursor:pointer; }
+div#play {
+    margin-left: 20px;}
+div#pause {
+    margin-left: 20px;
+    display:none;}
+div#stop {
+    margin-left: 20px;}
+.iconTitleBarText {
+    top:8px;
+    position: absolute; }
+div.menu_border {
+    border:2px solid rgb(225, 235, 251);
+    margin: 1px 1px 1px 1px;}
+.menu_configure_table tr {
+    height: 30px;}
+.menu_configure_show {
+    background-color: rgb(211, 211, 211);}
+.menu_configure_show td {
+    border: 1px solid rgb(201, 201, 201); };
+table {
+    border-collapse: collapse;}
+	

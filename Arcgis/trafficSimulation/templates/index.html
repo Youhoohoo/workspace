@@ -1,0 +1,1206 @@
+﻿<html>
+<head>
+  <title>城市车辆运动模拟系统</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+	<style type="text/css">
+        @import "./static/js/arcgis_js_api/library/3.8/jsapi/js/dojo/dijit/themes/soria/soria.css";
+		@import "./static/css/main.css";
+	</style>
+    <script type="text/javascript">
+        var djConfig = { parseOnLoad: true, isDebug: (window.location.search.indexOf("debug")>-1)};
+    </script>
+
+	<script type="text/javascript" src="./static/js/jquery-2.0.2.js"></script>
+    <link rel="stylesheet" type="text/css" href="./static/js/arcgis_js_api/library/3.8/jsapi/js/esri/css/esri.css" />
+    <script type="text/javascript" src="./static/js/arcgis_js_api/library/3.8/jsapi/init.js"></script>
+    
+
+    <script type="text/javascript" src="./static/js/main/import_module.js"> //导入模块
+    	//dojo.require("dojo.i18n!esri.nls.jsapi");</script>
+
+    	
+    <script type="text/javascript" > 
+    //定义全局变量
+    	var map;
+
+		//路径分析
+		var routeTask, routeParams, routes = [];
+		
+		//查询
+		var queryTask, query;
+		var infoTemplate;
+
+		//控件
+		var editToolbar, drawToolbar, ctxMenuForGraphics, ctxMenuForMap;
+
+		//Symbol
+        var stopSymbol, barrierSymbol, routeSymbol;
+		var carDefaultSymbol, carHighlightSymbol, carAssembleSymbol;
+		var fillSymbol;
+		var cars_quantity_text;
+		var monitorSymbol;
+
+		//事件句柄
+        var mapOnClick_addStops_connect;
+        var mapOnClick_addBarriers_connect;
+        var mapOnMouseMove_showCoordinate_connect;
+        var mapOnMouseDrag_showCoordinate_connect;
+        var mapOnClick_addCars_connect;
+        
+		//辅助变量
+		var selected, currentLocation, drawMode = esri.toolbars.Draw.RECTANGLE;
+		var centerPoint;
+		var show_car_for_the_first_time = 0;
+
+		//存储数据
+        var carsArray = new Array();
+		var carsFeatureSet;
+		var resultTemplate;
+        
+        var wkid = 3857;
+        var startExtent = new esri.geometry.Extent({//定义初始范围
+           "xmin": 9751048.627577912,
+           "ymin": 5431726.688938869,
+           "xmax": 9755572.744189661,
+           "ymax": 5434287.3293864895,
+           "spatialReference": {"wkid": wkid}
+         });   
+
+        //扩展point，增加密度属性, 默认为1
+        esri.geometry.Point.prototype.density = 1;
+        esri.geometry.Point.prototype.point_id = -1;
+
+    </script>
+	
+    <script type="text/javascript" >
+    //function of arcgis
+
+        function init() {
+		  // snapping is enabled for this sample - change the tooltip to reflect this
+		  //jsapiBundle.toolbars.draw.start = jsapiBundle.toolbars.draw.start +  "<br>Press <b>ALT</b> to enable snapping";
+          var arcgis_host = "http://10.10.2.42";
+          map = new esri.Map("mapDiv", {extent: startExtent, logo: false});
+		  mapServer = arcgis_host + "/ArcGIS/rest/services/乌鲁木齐栅格部署/MapServer";
+          map.addLayer(new esri.layers.ArcGISTiledMapServiceLayer(mapServer));
+          homeButton = new esri.dijit.HomeButton({map: map}, "HomeButton");
+          homeButton.startup();
+
+          routeTask = new esri.tasks.RouteTask(arcgis_host + "/ArcGIS/rest/services/乌鲁木齐栅格部署/NAServer/RouteLayer");
+          routeParams = new esri.tasks.RouteParameters();
+          routeParams.stops = new esri.tasks.FeatureSet();
+          routeParams.barriers = new esri.tasks.FeatureSet();
+		  routeParams.outSpatialReference = {"wkid":wkid};
+		  
+		  carsFeatureSet = new esri.tasks.FeatureSet();
+
+          dojo.connect(routeTask, "onSolveComplete", showRoute);
+          dojo.connect(routeTask, "onError", errorHandler);
+
+          stopSymbol = new esri.symbol.SimpleMarkerSymbol({
+						"color": [255,0,0,255],
+						"size": 8,
+						"angle": -30,
+						"xoffset": 0,
+						"yoffset": 0,
+						"type": "esriSMS",
+						"style": "esriSMSCircle",
+						"outline": {
+							"color": [0,0,0,255],
+							"width": 1,
+							"type": "esriSLS",
+							"style": "esriSLSSolid"
+						}
+					});
+
+		  //var barrierSymbol = new esri.symbol.PictureMarkerSymbol("./static/image/barrier.png", 24, 25);
+		  /*var barrierSymbol = new esri.symbol.PictureMarkerSymbol({
+						"angle": 0,
+						"xoffset": 0,
+						"yoffset": 0,
+						"type": "esriPMS",
+						"url": "./static/image/barrier.png",
+						"contentType": "image/png",
+						"width": 24, 
+						"height": 25
+					});*/
+          barrierSymbol = new esri.symbol.SimpleMarkerSymbol().setStyle(esri.symbol.SimpleMarkerSymbol.STYLE_X).setSize(10);
+          barrierSymbol.outline.setWidth(3).setColor(new dojo.Color([255, 0, 0]));
+
+          routeSymbol = new esri.symbol.SimpleLineSymbol().setColor(new dojo.Color([0,0,255,0.5])).setWidth(5);
+          
+		  CARcarDefaultSymbol = new esri.symbol.SimpleMarkerSymbol({
+						"color": [0,152,0,255],
+						"size": 12,
+						"angle": -30,
+						"xoffset": 0,
+						"yoffset": 0,
+						"type": "esriSMS",
+						"style": "esriSMSCircle",
+						"outline": {
+							"color": [255,255,255,255],
+							"width": 1,
+							"type": "esriSLS",
+							"style": "esriSLSSolid"
+						}
+					});
+
+		  carDefaultSymbol = new esri.symbol.PictureMarkerSymbol("../static/image/state/Sportscar.png", 20, 20);
+		  carAssembleSymbol = new esri.symbol.PictureMarkerSymbol("../static/image/state/State20-24.png", 20, 24);
+		  /*
+		   var symbol = new esri.symbol.SimpleMarkerSymbol();
+            var font = new esri.symbol.Font("100pt");//"10pt", Font.STYLE_ITALIC, Font.VARIANT_NORMAL, Font.WEIGHT_BOLD, "Courier");
+
+            var symbolText = new esri.symbol.TextSymbol("2");
+            symbolText.setColor(new dojo.Color([255,0,0])).setFont(font);//.setWeight(FontWEIGHT_BOLD));
+
+            symbol.setColor(new dojo.Color([25,255,122,0.25]));
+            */
+          var font_cars = new esri.symbol.Font("12pt");
+
+		  cars_quantity_text = new esri.symbol.TextSymbol("");
+		  cars_quantity_text.setColor(new dojo.Color([61,50,233])).setFont(font_cars);
+
+		  monitorSymbol = new esri.symbol.PictureMarkerSymbol("../static/image/state/Monitor-20.png", 20, 20);
+
+		  carHighlightSymbol = new esri.symbol.SimpleMarkerSymbol({
+						"color": [255,0,0,255],
+						"size": 12,
+						"angle": -30,
+						"xoffset": 0,
+						"yoffset": 0,
+						"type": "esriSMS",
+						"style": "esriSMSCircle",
+						"outline": {
+							"color": [255,255,255,255],
+							"width": 1,
+							"type": "esriSLS",
+							"style": "esriSLSSolid"
+						}
+					});
+					
+			
+		  fillSymbol = new esri.symbol.SimpleFillSymbol(esri.symbol.SimpleFillSymbol.STYLE_SOLID,
+														new esri.symbol.SimpleLineSymbol(
+																esri.symbol.SimpleLineSymbol.STYLE_SOLID,
+																new dojo.Color("#000"), 1
+															), 
+														new dojo.Color([255, 255, 0, 0.25])
+														);
+          mapOnMouseMove_showCoordinate_connect = dojo.connect(map, "onMouseMove", showCoordinate);
+          mapOnMouseDrag_showCoordinate_connect = dojo.connect(map, "onMouseDrag", showCoordinate);
+		  
+		  getMapCenterPoint(); //获得当前地图中心
+		  
+		  //dojo.connect(map, "onMouseDrag", showExtent);
+		  /*
+		  dojo.connect(map, "onMouseDrag", createMapMenu);
+		  dojo.connect(map, "onLoad", createToolbarAndContextMenu);
+		  dojo.connect(map, "onLoad", initToolbar);
+		  */
+		  //map.on("click", queryGraphic);
+		}
+		
+		function queryGraphic(evt) {
+			//build query task
+		    queryTask = new esri.tasks.QueryTask(arcgis_host + "/ArcGIS/rest/services/%E4%B9%8C%E9%B2%81%E6%9C%A8%E9%BD%90%E6%A0%85%E6%A0%BC%E9%83%A8%E7%BD%B2/MapServer/3");
+		  
+		    //Can listen for onComplete event to process results or can use the callback option in the queryTask.execute method.
+		    //dojo.connect(queryTask, "onComplete", showResults);
+			
+			//build query filter
+			query = new esri.tasks.Query();
+			query.geometry = evt.mapPoint;
+			query.outFields = ["*"];
+			query.outSpatialReference = map.spatialReference;
+			query.spatialRelationship = esri.tasks.Query.SPATIAL_REL_CONTAINS;
+			query.returnGeometry = true;
+			
+			//create the infoTemplate to be used in the infoWindow.
+			//All $${attributeName} will be substituted with the attribute value for current feature.
+			infoTemplate = new esri.InfoTemplate("$${Name}", 
+			"ObjectID: $${ObjectID}<br/>Shape: $${Shape}<br/>FirstStopID: $${FirstStopID}<br/>LastStopID: $${LastStopID}<br/>StopCount: $${StopCount}<br/>Total_长度: $${Total_长度}");
+			
+			//Execute task and call showResults on completion
+			queryTask.execute(query, function(featureSet){
+				//remove all graphics on the maps graphics layer
+				map.graphics.clear();
+				
+				//QueryTask returns a featureSet.  Loop through features in the featureSet and add them to the map.
+				dojo.forEach(featureSet.features, function(feature){
+					var graphic = feature;
+					graphic.setSymbol(routeSymbol);
+					
+					//Set the infoTemplate
+					graphic.setInfoTemplate(infoTemplate);
+					
+					alert(2);
+					//Add graphic to the map graphics layer.
+					map.graphics.add(graphic);
+				});
+			});
+		}
+		function createToolbarAndContextMenu() { 
+			//Create and setup editing tools
+			editToolbar = new esri.toolbars.Edit(map);
+
+			map.on("click", function(evt){
+				editToolbar.deactivate();
+			});
+
+			createMapMenu();
+			createGraphicsMenu();
+		}
+
+		//initialize drawing toolbar
+		function initToolbar(map){
+			drawToolbar = new esri.toolbars.Draw(map);
+
+			//find points in Extent when user completes drawing extent
+			dojo.connect(drawToolbar, "onDrawEnd", findPointsInExtent);
+			//drawToolbar.on("draw-end", addGraphic);
+		}
+		
+		//打开绘制工具
+		function openDrawToolbar(){
+			map.disableMapNavigation();
+			drawToolbar.activate(drawMode);
+			$$("#hint").css("color", "green").text("绘制模式已打开，可以在地图中进行点击来测量");
+			dojo.connect(dojo.byId("info"), "click", function(evt){
+				if(evt.target.id === "info") {
+					return;
+				}
+				map.disableMapNavigation();
+				drawToolbar.activate(drawMode);
+			});
+		}
+		
+		//关闭绘制工具
+		function closeDrawToolbar() {
+			drawToolbar.deactivate();
+			map.enableMapNavigation();
+			$$("#hint").css("color", "red").text("绘制模式已关闭，请点击开启绘制工具！");
+		}
+		
+		function addGraphic(evt) {
+			console.dir(evt.geometry);
+			map.graphics.add(new esri.Graphic(evt.geometry, fillSymbol));
+		}
+		function findPointsInExtent(extent) {
+			var results = [];
+			dojo.forEach(map.graphics.graphics, function(graphic){
+				if(extent.contains(graphic.geometry)) {
+					graphic.setSymbol(carHighlightSymbol);
+					var content = "<tr><td>" + graphic.geometry.x + "</td><td>" + graphic.geometry.y + "</td></tr>";
+					results.push(content);
+				} else if(graphic.symbol == carHighlightSymbol) {//else if point was previously hightlighted, reset its symbology
+					graphic.setSymbol(carDefaultSymbol);
+				}
+			});
+
+			//display number of points and list of points in extent
+			var content = "# of points in extent = " + results.length + "<br/>" + "<table><tbody>" + results.join("") + "</tbody></table>";
+			showDialog("结果", content);
+		}
+
+		function createMapMenu(){ 
+			//Creates right-click context menu for map
+			ctxMenuForMap = new dijit.Menu({
+				onOpen: function(box){
+					//Lets calculate the map coordinates where user right clicked.
+					//We'll use this to create the graphic when the user clicks
+					//on the menu item to "Add Point"
+					currentLocation = getMapPointFromMenuPostion(box);
+					editToolbar.deactivate();
+				}
+			});
+
+			ctxMenuForMap.addChild(new dijit.MenuItem({
+				label: "添加障碍",
+				onClick: function(evt) {
+					var graphic = new esri.Graphic(esri.geometry.jsonUtils.fromJson(currentLocation.toJson()), barrierSymbol);
+					map.graphics.add(graphic);
+				}
+			}));
+			ctxMenuForMap.startup();
+			ctxMenuForMap.bindDomNode(map.container);
+		}
+
+		function createGraphicsMenu(){
+			//Creates right-click context menu for GRAPHICS
+			ctxMenuForGraphics = new dijit.Menu({});
+			ctxMenuForGraphics.addChild(new dijit.MenuItem({
+				label: "取消障碍",
+				onClick: function() {
+					map.graphics.remove(selected);
+				}
+			}));
+
+			ctxMenuForGraphics.startup();
+
+			map.graphics.on("mouse-over", function(evt){
+				//We'll use this "selected" graphic to enable editing tools
+				//on this graphic when the user click on one of the tools
+				//listed in the menu.
+				selected = evt.graphic;
+
+				//Let's bind to the graphic underneath the mouse cursor
+				ctxMenuForGraphics.bindDomNode(evt.graphic.getDojoShape().getNode());
+			});
+
+			map.graphics.on("mouse-out", function(evt){
+				ctxMenuForGraphics.unBindDomNode(evt.graphic.getDojoShape().getNode());
+			});
+		}
+
+		//Helper Methods 
+		function getMapPointFromMenuPostion(box) {
+			var x = box.x, y = box.y;
+			switch(box.corner) {
+				case "TR":
+					x += box.w;
+					break;
+				case "BL":
+					y += box.h;
+					break;
+				case "BR":
+					x += box.w;
+					y += box.h;
+					break;
+			}
+
+			var screenPoint = new esri.geometry.Point(x - map.position.x, y - map.position.y);
+			return map.toMap(screenPoint);
+		}
+
+		function showExtent(evt) {
+			var s = "";
+			s = "XMin: "+ map.extent.xmin + "<br/>"
+				+" YMin: " + map.extent.ymin + "<br/>"
+				+" XMax: " + map.extent.xmax + "<br/>"
+				+" YMax: " + map.extent.ymax + "<br/>";
+			dojo.byId("show").innerHTML = s;
+		}
+		
+		//获得当前地图的中心
+		function getMapCenterPoint(){
+			centerPoint = new esri.geometry.Point({
+				"x": (map.extent.xmin + map.extent.xmax)/2.0,
+				"y": (map.extent.ymin + map.extent.ymax)/2.0,
+				"spatialReference": {"wkid": wkid}
+			});
+		}
+		
+		function showDialog(title, content){
+			dialog = new dijit.Dialog({
+				title: title,
+				style: "width: 300px",
+				content: content
+			});
+			dialog.show();
+		}
+		
+        //Begins listening for click events to add stops
+        function addStops() {
+          removeEventHandlers();
+          mapOnClick_addStops_connect = dojo.connect(map, "onClick", addStop);
+        }
+
+        //Clears all stops
+        function clearStops() {
+          removeEventHandlers();
+          for (var i = routeParams.stops.features.length - 1; i >= 0; i--) {
+            map.graphics.remove(routeParams.stops.features.splice(i, 1)[0]);
+          }
+        }
+
+        //Adds a stop. The stop is associated with the route currently displayed in the dropdown
+        function addStop(evt) {
+          var graphic = new esri.Graphic(evt.mapPoint, stopSymbol);
+          routeParams.stops.features.push(
+            map.graphics.add(graphic)
+          );
+        }
+
+      //Begins listening for click events to add barriers
+      function addBarriers() {
+        removeEventHandlers();
+        mapOnClick_addBarriers_connect = dojo.connect(map, "onClick", addBarrier);
+      }
+
+      //Clears all barriers
+      function clearBarriers() {
+      removeEventHandlers();
+        for (var i = routeParams.barriers.features.length - 1; i >= 0; i--) {
+          map.graphics.remove(routeParams.barriers.features.splice(i, 1)[0]);
+        }
+      }
+
+    //Adds a barrier
+    function addBarrier(evt) {
+      var graphic = new esri.Graphic(evt.mapPoint, barrierSymbol);
+      routeParams.barriers.features.push(
+          map.graphics.add(graphic)
+        );
+     }
+
+    //Stops listening for click events to add barriers and stops
+    function removeEventHandlers() {
+      dojo.disconnect(mapOnClick_addStops_connect);
+      dojo.disconnect(mapOnClick_addBarriers_connect);
+      dojo.disconnect(mapOnClick_addCars_connect);
+    }
+
+    //Solves the routes. Any errors will trigger the errorHandler function.
+    function solveRoute() {
+      removeEventHandlers();
+      routeTask.solve(routeParams);
+    }
+
+    //Clears all routes
+    function clearRoutes() {
+      for (var i = routes.length - 1; i >= 0; i--) {
+        map.graphics.remove(routes.splice(i, 1)[0]);
+      }
+      routes = [];
+    }
+
+    //Draws the resulting routes on the map
+    function showRoute(solveResult) {
+        clearRoutes();
+
+        dojo.forEach(solveResult.routeResults, function(routeResult, i) {
+          routes.push(
+            map.graphics.add(
+              routeResult.route.setSymbol(routeSymbol)
+            )
+          );
+        });
+
+        var msgs = ["Server messages:"];
+        dojo.forEach(solveResult.messages, function(message) {
+          msgs.push(message.type + " : " + message.description);
+        });
+        if (msgs.length > 1) {
+          alert(msgs.join("\n - "));
+        }
+      }
+
+    //Reports any errors that occurred during the solve
+    function errorHandler(err) {
+      alert("发生错误\n" + err.message + "\n" + err.details.join("\n"));
+    }
+    
+    //show the mouse's coordinate
+    function showCoordinate(evt){ 
+      var mp = evt.mapPoint;//mapPoint是地理坐标，screenPoint是屏幕坐标
+      dojo.byId("mouseCoords").innerHTML = mp.x + ", " + mp.y;
+    }
+    
+    function addCars() { 
+      removeEventHandlers();
+      mapOnClick_addCars_connect = dojo.connect(map, "onClick", addCar1); 
+    }
+    
+    function addCar1(evt){ 
+		console.dir(evt);
+		var new_car = evt.mapPoint;
+		carsArray.push(evt.mapPoint);
+		dojo.byId("show").innerHTML += evt.mapPoint.x + ", " + evt.mapPoint.y + "<br/>";
+    }
+
+	//根据后台传回的坐标构建车辆
+	function addCar(x, y, density){
+		var car_point = new esri.geometry.Point({
+			/*x: x + centerPoint.x, 
+			y: y + centerPoint.y, 
+            */
+            x: x,
+            y: y,
+			"spatialReference": {"wkid": wkid}
+			});
+		car_point.density = density;
+		carsArray.push(car_point);
+	}
+	
+    //当获得坐标时在地图上显示车的位置
+	function showCar(car){
+		var graphic = new esri.Graphic(car, carAssembleSymbol);
+		var density = car.density;
+		cars_quantity_text.setText(density);
+		var graphic_cars_quantity = new esri.Graphic(car, cars_quantity_text);
+
+		carsFeatureSet.features.push(
+			map.graphics.add(graphic)
+		);
+		carsFeatureSet.features.push(
+			map.graphics.add(graphic_cars_quantity)
+		);
+
+		//mapOnClick_addStops_connect = dojo.connect(graphic, "onClick", show_Monitored_Cars);
+	}
+
+    function showCars(){
+      for (i in carsArray) {
+        showCar(carsArray[i]);
+      }
+    }
+    
+    function clearCars(){
+	  removeEventHandlers();
+      var length = carsArray.length;
+      for(var i = 0; i < length; ++i) {
+        carsArray.pop();
+      }
+	  for (var i = carsFeatureSet.features.length - 1; i >= 0; i--) {
+            map.graphics.remove(carsFeatureSet.features.splice(i, 1)[0]);
+          }
+    }
+	
+	//刷新车辆的位置
+	function updateCarsPosition(points) {
+		for (var i = carsFeatureSet.features.length - 1; i >= 0; i--) {
+            map.graphics.remove(carsFeatureSet.features.splice(i, 1)[0]);
+        }
+        var offset_x = 0; //9753292;
+        var offset_y = 0; //5432761;
+        carsArray = [];
+        for (var i=0; i < points.length; i++) {
+            addCar(points[i]['x']+offset_x, points[i]['y']+offset_y, points[i]['density']);
+        }
+        /*
+	if(show_car_for_the_first_time == 0) {
+		for(var i = 0; i < points.length; ++i){
+			addCar(points[i]['x']+offset_x, points[i]['y']+offset_y, points[i]['density']);
+		}
+		show_car_for_the_first_time = 1;
+	}
+		else {
+			for(var i = 0; i < points.length; ++i){
+				carsArray[i].x = points[i]['x']+offset_x;
+				carsArray[i].y = points[i]['y']+offset_y;
+				carsArray[i].density = points[i]['density'];
+			}
+		}
+        */
+		showCars();
+	}
+	
+	//显示卡口
+    function showMonitors(monitors){
+      for (i in monitors) {
+        //showMonitor(monitors[i]);
+        //alert( msg['monitors'][0]['x']+' '+msg['monitors'][0]['y']);
+        var monitor_point = new esri.geometry.Point({
+            x: monitors[i]['x'],
+            y: monitors[i]['y'],
+			"spatialReference": {"wkid": wkid}
+			});
+		monitor_point.point_id = monitors[i]['monitor_id'];
+
+		var monitor_graphic = new esri.Graphic(monitor_point, monitorSymbol);
+		map.graphics.add(monitor_graphic);
+
+		//dojo.connect(map.graphics, "onMouseOver", g_onMouseOverHandler);
+      }
+
+      mapOnClick_addStops_connect = dojo.connect(map.graphics, "onClick", show_Monitored_Cars);
+    }
+
+    function show_Monitored_Cars(evt) {
+    	
+
+		/*
+	        <table cellpadding="0" cellspacing="0" align="center" border="0" width="189">
+			     <tbody>
+			                       
+			                        <tr>
+			                            <td width="72" height="23" align="center">CarNum</td>
+			                            <td width="117" height="23" align="center">0</td>
+			                        </tr>
+			                        
+			                        <tr>
+			                            <td align="center" height="23">MaxSpeed</td>
+			                            <td align="center" height="23"> 0 km/h</td>
+			                        </tr>
+			                       
+			                        <tr>
+			                            <td align="center" height="23">LightNum</td>
+			                            <td align="center" height="23">0</td>
+			                        </tr>
+			                        
+			       </tbody>
+			</table>
+		*/
+    	if (evt.graphic) {
+
+    		var target_monitor_id = evt.graphic.geometry['point_id'];
+
+    		$$.ajax({
+					url: "/fetchrecords",
+					data: "monitor_id=" + target_monitor_id,
+					dataType: 'json',
+					type: 'POST',
+					success: function(msg) {
+						console.dir(msg);
+						/* [{"car_id": 3, "time": "2014-07-24 13:54:44"}, {"car_id": 3, "time": "2014-07-24 14:00:03"}] */
+				        var info =  "摄像头id：" + target_monitor_id + "<br>";
+
+						info = info + "<table cellpadding=\"0\" cellspacing=\"0\" align=\"left\" border=\"0\" width=\"189\" style=\"font-size:12px;\">" +
+						     		"<tbody>" +	"<tr>" + 
+						                    "<td width=\"30\" height=\"23\" align=\"center\">车辆id</td>";
+
+				    	info += 			"<td width=\"117\" height=\"23\" align=\"center\">经过时间</td></tr>";
+				    	/*
+				    	for (var i = 0; i < 10; i++) {
+				    		var pass_time = "2014年7月23号15时08分24秒";
+				    		info = info + "<tr>" + 
+						                            "<td align=\"center\" height=\"23\">" + i + "</td>";
+
+						    info = 				info + " <td align=\"center\" height=\"23\">" + pass_time + "</td></tr>";
+
+
+				    		//info += "<br>" + i + "	" + "2014年7月23号15时08分24秒"
+				    		};
+				    	*/
+				    	for (var i in msg) {
+				    		var car_id = msg[i]['car_id'];
+				    		var pass_time = msg[i]['time'];
+				    		info = info + "<tr>" + 
+						                            "<td align=\"center\" height=\"23\">" + car_id + "</td>";
+
+						    info = 				info + " <td align=\"center\" height=\"23\">" + pass_time + "</td></tr>";
+
+
+				    		//info += "<br>" + i + "	" + "2014年7月23号15时08分24秒"
+				    		};
+				    	info += " </tbody></table>";
+				    	$$("#monitored_cars").html(info);
+
+				    	console.log(info);
+					}
+			});
+    	}
+    	
+
+    	
+    
+    }
+	dojo.addOnLoad(init);
+   </script>
+   <script type="text/javascript">
+	$$(document).ready(function() {
+		//$$(".iconTitleBar").bind("click", function(){
+		//	$$(".iconTitleBar>img").removeClass("iconOn");
+		//	$$(this).children("img").addClass("iconOn");}
+		//);
+		$$.ajax({
+			url: '/getConf',
+			data: '',
+			dataType: 'json',
+			type: 'POST',
+			success: function(msg) { 
+                // the car configurations
+				var innerHtml = assembleConfSelect(msg[0], "car_confiure_");
+				$$("#menu_configure_car").html(innerHtml);
+                // the traffic light configuration
+				var innerHtml2 = assembleConfSelect(msg[1], "traffic_light_configure_");
+				$$("#menu_configure_traffic_light").html(innerHtml2);
+			}
+		});
+		$$(".stateControl").each(function(i) {
+			$$(this).bind("click", function(e){
+				if(this.id=="play") changeState(1);
+				else if(this.id=="pause") changeState(2);
+				else if(this.id=="stop")  changeState(-1);
+			});
+		});
+	});
+
+	function refreshRefreshFreq() {
+		REFRESH_FREQUENCY = parseInt($$("#menu_configure_refresh_frequency option:selected").val());
+	}
+
+	function changeState(toState) {
+		var id;
+		if(toState==1) id='play';
+		else if(toState==2) id='pause';
+		else if(toState==-1) id='stop';
+		var originHtml = ($$("#"+id).html());
+		$$("#"+id).html("<img src='./static/image/loading.gif' height='30px'/>");
+		$$.ajax({
+			url: '/changeState',
+			data: 'state='+toState,
+			dataType: 'json',
+			type: 'POST',
+			success: function(msg) {
+				$$("#"+id).html(originHtml);
+				if(id!="stop") {
+					$$(".stateControl").css("display", "inline");
+					$$("#"+id).css("display", "none");
+				}
+				$$("#show").html($$("#show").html() + 
+                    "<span>Change State Successfull: " + 
+                    msg['STATE'] + "</span><br/>");
+
+				//control the heartBeat;
+				if(toState==1) {
+					//start frequent requests 
+					refreshRefreshFreq();
+					HEART_BEAT = setInterval(function() { sendHeartBeat();}, REFRESH_FREQUENCY*1000);
+				}
+				if(toState==2) {
+					//pause the heartBeat
+					clearInterval(HEART_BEAT);
+				}
+				if(toState==-1) {
+					//stop the heartBeat
+					//alert("show car for the first time:"+show_car_for_the_first_time);
+					show_car_for_the_first_time = 0;
+					//alert("show_car_for_the_first_time has done!");
+					clearInterval(HEART_BEAT);
+					//alert("clearInterval(HEART_BEAT) done");
+				}
+			}
+		});
+	}
+
+	function sendHeartBeat() {
+		/*
+		console.log(map.getLevel());
+	            console.log(map.extent.xmax);
+	    <Number> xmin 	Required 	Bottom-left X-coordinate of an extent envelope.
+		<Number> ymin 	Required 	Bottom-left Y-coordinate of an extent envelope.
+		<Number> xmax 	Required 	Top-right X-coordinate of an extent envelope.
+		<Number> ymax 	Required 	Top-right Y-coordinate of an extent envelope.
+	            */
+        var xmin = map.extent.xmin;
+		var ymin = map.extent.ymin;
+		var xmax = map.extent.xmax;
+		var ymax = map.extent.ymax; 
+	    var level = map.getLevel();
+	   
+		$$.ajax({
+			url: "/heartBeatResponse",
+			data: "xmin=" + xmin + "&ymin=" + ymin + "&xmax=" + xmax + "&ymax=" + ymax + "&level=" + level,
+			dataType: 'json',
+			type: 'POST',
+			success: function(msg) {
+				console.dir(msg);
+				//{"points": [{"y": 5433219.459079464, "x": 9753950.769360067, "density": 1}]}
+				// console.log(msg);
+                // var eval_info = '';
+                var car_info = '';
+                console.group("车辆坐标：");　
+                for(var i = 0; i < msg['points'].length; i++) {
+                    car_info = 'x:' + msg['points'][i]['x'] + 
+                        ',y:' + msg['points'][i]['y'] + 
+                        ', 密度：' + msg['points'][i]['density'];
+                     // console.log(eval_info);
+                     console.info(car_info);
+                }
+                console.groupEnd();
+				//$$("#show").html($$("#show").html()+"<br/>"+eval_info);
+				updateCarsPosition(msg['points']);
+			}
+		});
+	}
+
+	function assembleConfSelect(msgList, labelName) {
+			//"show(this.options[this.options.selectedIndex].value, this.options[this.options.selectedIndex].text);"
+			innerHtml = "<select style=\"width:100px\" onchange=\"" + 
+			"show_car_config(this.options[this.options.selectedIndex].value, this.options[this.options.selectedIndex].text);\">";
+			for(var i = 0; i < msgList.length; i++) {
+                if (labelName.indexOf("car") != -1) {
+                    // matches the car
+				    innerHtml += "<option value='"+msgList[i]['solution_id']+"'>"+
+                        msgList[i]['solution_name']+"</option>";
+                }
+                else {
+                    // matches the light
+				    innerHtml += "<option value='"+labelName+i+"'>"+
+                        msgList[i]['light_solution_name']+"</option>";
+                }
+			}
+			innerHtml += "</select>";
+			return innerHtml;
+	}
+
+	function config_confirm_disable() {
+		if (!confirm("Confirm?")){
+			return;
+		}
+		else{
+			/**
+			下拉列表操作
+				var x=document.getElementById("mySelect")
+			  alert(x.selectedIndex)
+
+			  var obj = document.getElementByIdx_x(”select_id”); //selectid
+			var index = obj.selectedIndex; // 选中索引
+			var text = obj.options[index].text; // 选中文本
+			var value = obj.options[index].value; // 选中值
+			*/
+			var solution_select = document.getElementById("menu_configure_car").getElementsByTagName("select");
+			var index = solution_select[0].selectedIndex;
+			var value = solution_select[0].options[index].value;
+			//post('/selectConf', {solution_id:value});
+			$$.ajax({
+				url: '/selectConf',
+				data: 'solution_id='+value,
+				dataType: 'json',
+				type: 'POST',
+				success: function(msg) {
+					alert( msg['result'] );
+                    //alert( msg['monitors'][0]['x']+' '+msg['monitors'][0]['y']);
+                    showMonitors(msg['monitors']);
+				}
+			});
+		
+			var config_div = document.getElementById("config_table").getElementsByTagName("select");
+			for (var i = 0; i < config_div.length; i++) {
+				config_div[i].disabled = true;
+			}
+		}
+	}
+
+	/**
+
+	function post(path, params, method) {
+	    method = method || "post"; // Set method to post by default if not specified.
+
+	    // The rest of this code assumes you are not using a library.
+	    // It can be made less wordy if you use one.
+	    var form = document.createElement("form");
+	    form.setAttribute("method", method);
+	    form.setAttribute("action", path);
+
+	    for(var key in params) {
+	        if(params.hasOwnProperty(key)) {
+	            var hiddenField = document.createElement("input");
+	            hiddenField.setAttribute("type", "hidden");
+	            hiddenField.setAttribute("name", key);
+	            hiddenField.setAttribute("value", params[key]);
+
+	            form.appendChild(hiddenField);
+	         }
+	    }
+
+	    document.body.appendChild(form);
+	    form.submit();
+	}
+	*/
+
+
+	//车辆配置时,点击下拉列表动作
+
+	function show_refresh_freq(value){  
+    	//document.getElementById("show_car_configure").innerHTML="Your Selected : <br>"+ value + "<br>" ;  
+    	document.getElementById("menu_configure_show_car_refresh").innerHTML= value;
+	} 
+
+	function show_car_config(value, text){
+
+		document.getElementById("menu_configure_show_car_solution_name").innerHTML = text; 
+
+
+		/*
+			<tr class="menu_configure_show">
+					<td>Refresh Freq</td>
+					<td id="menu_configure_show_car_refresh"></td>
+				</tr>
+				<tr class="menu_configure_show">
+					<td>solution_name</td>
+					<td id="menu_configure_show_car_solution_name"></td>
+				</tr>
+				<tr class="menu_configure_show">
+					<td>description</td>
+					<td id="menu_configure_show_solution_description"></td>
+				</tr>
+				
+				
+				<tr class="menu_configure_show">
+					<td>CarNum</td>
+					<td id="menu_configure_show_car_num">0</td>
+				</tr>
+				<tr class="menu_configure_show">
+					<td>MaxSpeed</td>
+					<td id="menu_configure_show_max_speed">0km/h</td>
+				</tr>
+		*/
+
+		
+		$$.ajax({
+				url: '/fetchsolutioninfo',
+				data: 'solution_id='+value,
+				dataType: 'json',
+				type: 'POST',
+				success: function(msg) {
+					//alert( msg['result'] );
+                    //alert( msg['monitors'][0]['x']+' '+msg['monitors'][0]['y']);
+                    //showMonitors(msg['monitors']);
+                    console.info(msg);
+                    document.getElementById("menu_configure_show_solution_description").innerHTML = msg[0]['description'];
+                    document.getElementById("menu_configure_show_car_num").innerHTML = msg[0]['car_num'];
+                    document.getElementById("menu_configure_show_max_speed").innerHTML = msg[0]['max_speed'];
+				}
+			});
+		
+	}
+
+    </script>
+
+
+</head>
+<body class="soria">
+  <div dojoType="dijit.layout.BorderContainer" design="headline"  id="main">
+        <div id="header" dojoType="dijit.layout.ContentPane" region="top">
+            城市车辆运动模拟系统
+        </div>
+        
+        <div id="center" dojoType="dijit.layout.BorderContainer" region="center" design="headline">
+			<!-- 工具条-->
+			<div dojoType="dijit.Toolbar" region="top">
+				<div id="controller">
+					<div id="play" class="iconTitleBar smallIcon stateControl">
+						<img src="./static/image/play.png" height="30px"/>
+					<span class="iconTitleBarText">Play</span></div>
+					<div id="pause" class="iconTitleBar smallIcon stateControl">
+						<img src="./static/image/pause.png" height="30px"/>
+					<span class="iconTitleBarText">Pause</span></div>
+					<div id="stop" class="iconTitleBar smallIcon stateControl">
+						<img src="./static/image/stop.png" height="30px"/>
+					<span class="iconTitleBarText">Stop</span></div>
+					<!--
+					<div dojoType="dijit.form.DropDownButton" >
+            	        <span>选择地图信息类型</span>
+            	        <div dojoType="dijit.Menu" id="gMapType">
+                	        <div dojoType="dijit.MenuItem" label="路况信息"></div>
+                	        <div dojoType="dijit.MenuItem" label="车辆信息"></div>
+            	        </div>
+        	        </div>
+        	        -->
+			  </div>
+			</div>
+          <!-- 界面左边系统配置管理模块 -->
+          <div dojoType="dijit.layout.AccordionContainer" id="myAccordionContainer" region="left" splitter="true" style="width:200px;margin:-5px 0 0 0;">
+            <div dojoType="dijit.layout.AccordionPane" title="车辆配置">
+				<span style="font-weight: bold;">Configure</span><br/>
+				
+				<table id="config_table" class="menu_configure_table" style="font-size: 9pt">
+				<tr>
+					<td>Refresh Freq.</td>
+					<td><div id="menu_configure_refresh_frequency">
+						<select style= "width:100px" onChange="show_refresh_freq(this.options[this.options.selectedIndex].text);">
+							<option value="1">1 second&nbsp;&nbsp;&nbsp;&nbsp;</option>
+							<option value="2">2 seconds</option>
+							<option value="3">3 seconds</option>
+						</select>
+
+				</tr>
+				<tr>
+					<td>Car Configure</td>
+					</div></td>					<td><div id="menu_configure_car"></div></td>
+				</tr>
+				<!--
+				<tr>
+					<td>Traffic Light</td>
+					<td><div id="menu_configure_traffic_light"></div></td>
+				</tr>
+				-->
+				<tr>
+					<td></td>
+					<td>
+					<!--<div><button id="configure_confirm" onClick="javascript:{this.disabled=true;}">确定</button></div>-->
+					<div><button id="configure_confirm" onClick="config_confirm_disable()">确定</button></div>
+					</td>
+				</tr>
+				<tr>
+					<td>Your Selected : </td>
+					<td></td>
+				</tr>
+				
+				 
+				
+				
+				<tr class="menu_configure_show">
+					<td>Refresh Freq</td>
+					<td id="menu_configure_show_car_refresh">1 second</td>
+				</tr>
+				<tr class="menu_configure_show">
+					<td>solution_name</td>
+					<td id="menu_configure_show_car_solution_name">Test_Solution_1</td>
+				</tr>
+				<tr class="menu_configure_show">
+					<td>description</td>
+					<td id="menu_configure_show_solution_description">The First Init_Cars_Solution</td>
+				</tr>
+				
+				
+				<tr class="menu_configure_show">
+					<td>CarNum</td>
+					<td id="menu_configure_show_car_num">0</td>
+				</tr>
+				<tr class="menu_configure_show">
+					<td>MaxSpeed</td>
+					<td id="menu_configure_show_max_speed">0km/h</td>
+				</tr>
+				
+				<!--
+				<tr>
+					<td></td>
+					<td> <button dojoType="dijit.form.Button" onClick="addCars()">添加车辆</button><br/></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><button dojoType="dijit.form.Button" onClick="showCars()">显示车辆</button><br/></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><button dojoType="dijit.form.Button" onClick="clearCars()">清除车辆</button><br/></td>
+				</tr>
+				-->
+				
+				<!--
+				<tr class="menu_configure_show">
+					<td>LightNum</td>
+					<td id="menu_configure_show_light_num">0</td>
+				</tr>
+				
+				
+				
+				
+							<table cellpadding="0" cellspacing="0" align="center" border="0" width="189">
+								<tbody>
+									<tr align="center">
+										<td colspan="3" height="60">
+											<table cellpadding="0" cellspacing="0" background="../static/image/weather_data/r_tembg2.gif" border="0" width="189">
+												<tbody>
+													<tr>
+														<td colspan="2"><img src="../static/image/weather_data/r_tembg1.gif" height="6" width="189"></td>
+													</tr>
+													<tr>
+														<td width="72" height="23" align="center">CarNum</td>
+														<td width="117" height="23" align="center">0</td>
+													</tr>
+													<tr>
+														<td colspan="2" align="center" background="../static/image/weather_data/line2.gif" height="1"></td>
+													</tr>
+													<tr>
+														<td align="center" height="23">MaxSpeed</td>
+														<td align="center" height="23"> 0 km/h</td>
+													</tr>
+													<tr>
+														<td colspan="2" align="center" background="../static/image/weather_data/line2.gif" height="1"></td>
+													</tr>
+													<tr>
+														<td align="center" height="23">LightNum</td>
+														<td align="center" height="23">0</td>
+													</tr>
+													<tr>
+														<td colspan="2" align="center" background="../static/image/weather_data/line2.gif" height="1"></td>
+													</tr>
+													
+													<tr>
+														<td colspan="2"><img src="../static/image/weather_data/r_tembg3.gif" height="3" width="189"></td>
+													</tr>
+												</tbody>	
+													
+													
+											</table>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+				
+					-->
+				</table>
+              <!--
+              <button dojoType="dijit.form.Button" onClick="addCars()">添加车辆</button><br/>
+              <button dojoType="dijit.form.Button" onClick="showCars()">显示车辆</button><br/>
+              <button dojoType="dijit.form.Button" onClick="clearCars()">清除车辆</button><br/>
+              -->
+            </div>
+			<!--
+            <div dojoType="dijit.layout.AccordionPane" title="红绿灯配置"></div>
+            <div dojoType="dijit.layout.AccordionPane" title="交通管理" id="measurePane"></div>
+            <div dojoType="dijit.layout.AccordionPane" title="路径分析">
+              <button dojoType="dijit.form.Button" onClick="addStops()">增加站点</button><br/>
+              <button dojoType="dijit.form.Button" onClick="clearStops()">清除站点</button><br/>
+              <button dojoType="dijit.form.Button" onClick="addBarriers()">增加路障</button><br/>
+              <button dojoType="dijit.form.Button" onClick="clearBarriers()">清除路障</button><br/>
+              <button dojoType="dijit.form.Button" onClick="solveRoute()">路径分析</button><br/>
+              <button dojoType="dijit.form.Button" onClick="clearRoutes()">清除路径</button><br/>
+            </div>
+			-->
+          </div>
+                
+          <div id="mapDiv" dojoType="dijit.layout.ContentPane" region="center" style="background-color: #f5ffbf; padding: 0; margin: -5px 0 0 0;"> 
+              <div id="HomeButton"></div>           
+          </div>  
+
+		<!--
+          <div dojoType="dijit.layout.AccordionContainer" region="right"  style="width: 15%;margin: -5px 0 0 0;" splitter="true">
+			
+			
+			<div dojoType="dijit.layout.AccordionPane" title="区域车辆查询" style="height: 10%">
+				<div>
+					<div>
+						<button onClick="openDrawToolbar()">开启绘制工具</button><br/>
+						<button onClick="closeDrawToolbar()">关闭绘制工具</button><br/>
+						<div id="hint" style="color: red;">绘制模式已关闭，请点击开启绘制工具！</div>
+					</div>
+					<hr/>
+					<div id="info">
+						<div>绘制模式：</div>
+						<input type="radio" name="drawMode" id="Triangle" value="Triangle" onClick="drawMode=esri.toolbars.Draw.TRIANGLE;" /> 三角形	<br/>
+						<input type="radio" name="drawMode" id="Extent" value="Extent" onClick="drawMode=esri.toolbars.Draw.RECTANGLE;" checked="checked"/> 矩形	<br/>
+						<input type="radio" name="drawMode" id="Circle" value="Circle" onClick="drawMode=esri.toolbars.Draw.CIRCLE;"/> 圆形	<br/>
+						<input type="radio" name="drawMode" id="Ellipse" value="Ellipse" onClick="drawMode=esri.toolbars.Draw.ELLIPSE;"/> 椭圆	<br/>
+						<input type="radio" name="drawMode" id="Polygon" value="Polygon" onClick="drawMode=esri.toolbars.Draw.POLYGON;"/> 多边形	<br/>
+						<input type="radio" name="drawMode" id="FreehandPolygon" value="FreehandPolygon" onClick="drawMode=esri.toolbars.Draw.FREEHAND_POLYGON;"/>  手绘多边形  <br/>
+					</div>
+				</div>
+			</div>
+			
+			
+            <div dojoType="dijit.layout.AccordionPane" title="     Console">
+            	<div id="show" style="position: absolute; left: 20px; top: 30px;"></div>
+            </div>
+
+            
+            <div dojoType="dijit.layout.AccordionPane" title="工具 - 测量" style="height: 30%"></div>
+            
+
+
+          </div>
+		  
+		  -->
+		  
+		  
+		  <div dojoType="dijit.layout.ContentPane" region="right"  style="width: 15%;margin: -5px 0 0 0;" splitter="true">
+
+			  <div dojoType="dijit.layout.AccordionContainer" style="height: 38%;margin: -5px 0 0 0;">
+				<div dojoType="dijit.layout.AccordionPane" title="Console">
+					<div id="show"> <!-- style="position: absolute; left: 20px; top: 30px;" --></div>
+				</div>
+			  </div>
+			  
+			  <div dojoType="dijit.layout.AccordionContainer" style="height: 62%;margin: -5px 0 0 0;">
+				<div dojoType="dijit.layout.AccordionPane" title="车辆统计">
+					<div id="monitored_cars"></div>
+				</div>
+			  </div>
+
+		  </div>
+		  
+		  
+	
+        </div>
+        <div id="footer" dojoType="dijit.layout.ContentPane" region="bottom">
+            <span style="float: center" class='copyright'>Copyright&nbsp;&copy;2014, PKUSS, All Rights Reserved</span>
+            <div style="position: absolute; left: 85%;" id="mouseCoords">X: , Y:</div>
+        </div>
+    </div>
+</body>
+</html>

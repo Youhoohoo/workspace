@@ -1,0 +1,40 @@
+{
+    "check": "", 
+    "description": {
+        "#text": "", 
+        "birthdate": "201308", 
+        "description": "camera", 
+        "gateway": "192.168.119.254", 
+        "geo": "25.762,85.74", 
+        "height": "1", 
+        "localaddr": "192.168.111.240", 
+        "localid": "cam_300094", 
+        "localport": "7000", 
+        "manufacturer": "iie.iie", 
+        "name": "卡口视频", 
+        "streamurl": "rtmp://192.168.119.193/live/stream111240"
+    }, 
+    "lastModified": "2014-04-22 14:32:54", 
+    "name": "卡口_95", 
+    "properties": {
+        "photo": {
+            "description": {
+                "comment": "taking photos of cars"
+            }, 
+            "direction": "RES_2_USER", 
+            "dynamic": false, 
+            "name": "photo", 
+            "type": {
+                "name": "data", 
+                "org": "iie"
+            }
+        }
+    }, 
+    "relationship": {}, 
+    "rid": "300094", 
+    "tags": [
+        "视频", 
+        "摄像头", 
+        "卡口"
+    ]
+}

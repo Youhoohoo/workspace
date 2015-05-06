@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link href="static/main.css" type="text/css" rel="stylesheet"  />
+<title>城市车辆智能模拟系统</title>
+<script src="static/scripts/sockjs-0.3.4.js"></script>
+<script src="static/scripts/stomp.js"></script>
+<script src="static/scripts/jquery.js" type="text/javascript"></script>
+<script type = "text/javascript">
+    var stompClient = null;
+    var count_n=1;
+    var stompClient = null;
+    var count_n=1;
+    function setConnected(connected) {
+        document.getElementById('connect').disabled = connected;
+        document.getElementById('disconnect').disabled = !connected;
+        document.getElementById('conversationDiv').style.visibility = connected ? 'visible' : 'hidden';
+        document.getElementById('response').innerHTML = '';
+    }
+
+    function connect() {
+        var socket = new SockJS('http://10.10.12.72:8080/hello');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function(frame) {
+            setConnected(true);
+            console.log('Connected: ' + frame);
+            for (var i=0;i<100;i++){
+                var num = 300000+i;
+                stompClient.subscribe('/websocket.dataItem.'+num, onmessage);
+            }
+        });
+    }
+    
+    function onmessage (message){
+    	//showGreeting(JSON.parse(greeting.body).content);
+        //alert(message);
+        console.log(message);
+        var myObject = eval('(' + message.body + ')');
+        console.log(myObject); 
+        var rid = myObject.rid;
+        var pid = myObject.pid;
+        var data = myObject.data;
+        var timestamp = myObject.timestamp;
+        var u_timestamp = new Date(timestamp);
+        var commonTime = u_timestamp.toLocaleString();
+        addItem(rid,pid,data,commonTime);
+    }
+
+    function disconnect() {
+        if (stompClient != null) {
+            stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log("Disconnected");
+    }
+
+    function sendName() {
+        var name = document.getElementById('name').value;
+        stompClient.send("/app/hello", {}, JSON.stringify({ 'name': name }));
+    }
+
+    function showGreeting(message) {
+        var response = document.getElementById('response');
+        var p = document.createElement('p');
+        p.style.wordWrap = 'break-word';
+        p.appendChild(document.createTextNode(message));
+        response.appendChild(p);
+    }
+
+    function addItem(rid,pid,data,timestamp){
+    	count_n++;
+    	var car_cont="<table width=\"100%\" rules=\"all\" style=\"TABLE-LAYOUT: fixed; WORD-BREAK: break-all\">"+
+        "<tr><th style=\"width:100px\">"+count_n+
+        "</th><th style=\"width:270px\"><img src=\"data:images/jpg;base64,"+data+"\" alt=\"无法找到此车辆图片\" width=\"160px\" height=\"120px\"></th>"+
+          "<th style=\"width:180px\">"+timestamp+"</th>"+
+          "<th style=\"width:140px\">"+rid+"</th>"+
+          "<th style=\"width:155px\">"+rid+"</th>"+
+          "<th style=\"width:155px\">路口编号</th>"+
+          "<th>详细信息</th></tr></table>";
+        jQuery('#show').append(car_cont);//添加新内容到content底端....
+        jQuery("#show").scrollTop(jQuery("#show")[0].scrollHeight); //保持滚动条在底端显示
+    }
+</script>
+</head>
+<body onload="disconnect()">
+<noscript><h2 style="color: #ff0000">Seems your browser doesn't support Javascript! Websocket relies on Javascript being enabled. Please enable
+    Javascript and reload this page!</h2></noscript>
+<div id="wrapper">
+  <div id="header">
+    <div class="topnav">城市车辆智能模拟系统</div>
+  </div><!--header结尾-->
+  <div id="content">
+  	<div class="topborder"><br></div>
+    <div class="tag">
+        <span style="width:80px">编号</span><span style="width:250px">车辆图片</span><span style="width:160px">通过时间</span><span style="width:120px">车辆ID</span><span style="width:135px">摄像头ID</span><span style="width:135px">路口编号</span><span style="width:452px">详细信息</span>
+    </div>
+    <div id ="show">
+        <table width="100%" rules="all" style="TABLE-LAYOUT: fixed; WORD-BREAK: break-all">
+        <tr>
+          <th style="width:100px">1</th>
+          <th style="width:270px"><img src="static/images/paoche.jpg" alt="无法找到此车辆图片" width="160px" height="120px"></th>
+          <th style="width:180px">车牌号</th>
+          <th style="width:140px">车辆ID</th>
+          <th style="width:155px">摄像头ID</th>
+          <th style="width:155px">路口编号</th>
+          <th>详细信息</th>
+        </tr>
+        </table>
+    </div><!--show结尾-->
+  </div><!--content结尾-->
+  <div id="footer">
+  </div><!--footer结尾-->
+</div><!--wrapper结尾-->
+<div style="position:fixed;top:380px;left:1700px" id="btn1"><input type="button" onclick="addItem(1,2,3,3000)" value="左右"/></div>
+<div style="position:fixed;top:420px;left:1700px" id="btn2"><input type="button" onclick="addItem(4,3,2,1000)" value="列表格式"/></div>
+<div>
+    <div style="position:fixed;top:250px;left:1700px">
+        <button id="connect" onclick="connect();">Connect</button><br><br><br>
+        <button id="disconnect" disabled="disabled" onclick="disconnect();">Disconnect</button>
+    </div>
+    <div id="conversationDiv">
+        <label>What is your name?</label><input type="text" id="name" />
+        <button id="sendName" onclick="sendName();">Send</button>
+        <p id="response"></p>
+    </div>
+</div>
+</body>
+</html>
